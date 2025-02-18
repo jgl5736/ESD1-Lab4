@@ -8,21 +8,32 @@ USE ieee.std_logic_1164.ALL;
 USE ieee.std_logic_unsigned.ALL;
 USE ieee.numeric_std.ALL;
 
-ENTITY servoController IS
-  PORT(
-    clk        : IN std_logic;          -- 50 Mhz system clock
-    reset_n    : IN std_logic;          -- active low system reset
-    write      : IN std_logic;          -- active high write enable
-    address    : IN std_logic;          -- address of register to be written to (from CPU)
-    writedata  : IN std_logic_vector(31 DOWNTO 0);  -- data from the CPU to be stored in the component
-    --
-    out_wave_export  : OUT std_logic;  -- wave data visible to other components
-    irq : OUT std_logic  -- signal to interrupt the processor                      
-    );
-END ENTITY servoController;
+ENTITY servoController_tb IS
+END ENTITY servoController_tb;
 
 ARCHITECTURE rtl OF servoController IS
 
+  component servoController IS
+    PORT(
+      clk        : IN std_logic;          -- 50 Mhz system clock
+      reset_n    : IN std_logic;          -- active low system reset
+      write      : IN std_logic;          -- active high write enable
+      address    : IN std_logic;          -- address of register to be written to (from CPU)
+      writedata  : IN std_logic_vector(31 DOWNTO 0);  -- data from the CPU to be stored in the component
+      --
+      out_wave_export  : OUT std_logic;  -- wave data visible to other components
+      irq : OUT std_logic  -- signal to interrupt the processor                      
+      );
+  END component;
+
+  signal clk        : std_logic;          -- 50 Mhz system clock
+  signal reset_n    : std_logic;          -- active low system reset
+  signal write      : std_logic;          -- active high write enable
+  signal address    : std_logic;          -- address of register to be written to (from CPU)
+  signal writedata  : std_logic_vector(31 DOWNTO 0);  -- data from the CPU to be stored in the component
+  signal out_wave_export  : std_logic;  -- wave data visible to other components
+  signal irq : std_logic  -- signal to interrupt the processor
+    
   signal cntr : std_logic_vector(25 downto 0);
   signal period_cntr : std_logic_vector(25 downto 0);
   signal angle_cntr : std_logic_vector(25 downto 0);
@@ -42,41 +53,17 @@ ARCHITECTURE rtl OF servoController IS
   
 BEGIN
 
-  --this process loads data from the CPU.  The CPU provides the address, 
-  --the data and the write enable signal
-  PROCESS(clk, reset_n)
-  BEGIN
-    IF (reset_n = '0') THEN
-      --Registers <= (OTHERS => "00000000000000000000000000000000");
-    ELSIF (clk'event AND clk = '1') THEN
-      IF (write = '1') THEN
-        Registers(to_integer(unsigned(address))) <= writedata;
-        --when write enable is active, the ram location at the given address
-        --is loaded with the input data
-      END IF;
-    END IF;
-  END PROCESS;
 
-
---this process updates the internal address on each clock edge.
-  latch : PROCESS(clk, reset_n)
-  BEGIN
-    IF (reset_n = '0') THEN
-      internal_addr <= '0';
-    ELSIF (clk'event AND clk = '1') THEN
-      internal_addr <= ext_addr;
-    END IF;
-  END PROCESS;
-
-  --this process interrupts the processor once a sweep is complete
-  interrupts : PROCESS(current_state)
-  BEGIN
-    IF (current_state == INT_RIGHT || current_state == INT_LEFT) THEN
-      irq <= '1';
-    ELSE
-      irq <= '0';
-    END IF;
-  END PROCESS;
+uut : servoController
+  port map(
+    clk      => clk,
+    reset_n  => reset,
+    write    => write,
+    address  => address,
+    writedata => writedata,
+    out_wave_export => out_wave_export,
+    irq => irq
+  );
 
 --- heartbeat counter --------
   counter_proc : process (CLOCK_50) begin
