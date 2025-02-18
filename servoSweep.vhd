@@ -32,6 +32,8 @@ ARCHITECTURE rtl OF servoSweep IS
 
 BEGIN
 
+  LEDR(9) <= cntr(24);
+
   --this process loads data from the CPU.  The CPU provides the address, 
   --the data and the write enable signal
   PROCESS(clk, reset_n)
