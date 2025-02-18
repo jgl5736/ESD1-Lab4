@@ -22,6 +22,11 @@ ARCHITECTURE rtl OF servoSweep IS
   -- It stores eight 32-bit values
   TYPE ram_type IS ARRAY (1 DOWNTO 0) OF std_logic_vector (31 DOWNTO 0);
   SIGNAL Registers : ram_type;          --instance of ram_type
+  
+  type state_type is (SWEEP_RIGHT, INT_RIGHT, SWEEP_LEFT, INT_LEFT);
+  signal next_state : state_type;
+  signal current_state : state_type;
+  signal is_new_state : std_logic;
 
   --internal signal to address ram
   SIGNAL internal_addr : std_logic;  
@@ -59,17 +64,40 @@ BEGIN
     END IF;
   END PROCESS;
 
---- heartbeat counter --------
-  counter_proc : process (CLOCK_50) begin
-    if (rising_edge(CLOCK_50)) then
-      if (reset_n = '0') then
-        cntr <= "00" & x"000000";
-      else
-        cntr <= cntr + ("00" & x"000001");
-      end if;
-    end if;
-  end process counter_proc;
-  
+-- Next State Logic
+  nsl : process(clk, reset_n)
+  BEGIN
+    IF (reset_n = '0') THEN
+      next_state <= SWEEP_RIGHT;
+    ELSIF (clk'event AND clk = '1') THEN
+      case (current_state) is
+        when SWEEP_RIGHT =>
+          if (angle_count >= max_angle_count) THEN
+            next_state <= INT_RIGHT;
+          ELSE
+            next_state <= SWEEP_RIGHT;
+          end if;
+        when INT_RIGHT =>
+          if (write ='1') THEN
+            next_state <= SWEEP_LEFT;
+          else 
+            next_state <= INT_RIGHT;
+          end IF;
+        when SWEEP_LEFT =>
+          if (angle_count <= min_angle_count) THEN
+            next_state <= INT_LEFT;
+          ELSE
+            next_state <= SWEEP_LEFT;
+          end if;
+        when INT_LEFT=>
+          if (write ='1') THEN
+            next_state <= SWEEP_RIGHT;
+          else 
+            next_state <= INT_LEFT;
+          end IF;
+      end case;
+    END IF;
+      
   --output the data being requested
   ext_data <= Registers(conv_integer(internal_addr));  
 
@@ -83,4 +111,15 @@ BEGIN
     END IF;
   END PROCESS;
 
+--- heartbeat counter --------
+  counter_proc : process (CLOCK_50) begin
+    if (rising_edge(CLOCK_50)) then
+      if (reset_n = '0') then
+        cntr <= "00" & x"000000";
+      else
+        cntr <= cntr + ("00" & x"000001");
+      end if;
+    end if;
+  end process counter_proc;
+  
 END ARCHITECTURE rtl;         
