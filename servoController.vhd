@@ -1,6 +1,6 @@
 --  AUTHOR: Jack Lowrey
---  LAB NAME:  Servo Condroller
---  FILE NAME:  servoSweep.vhd
+--  LAB NAME:  Servo Controller
+--  FILE NAME:  servoController.vhd
 --
 
 LIBRARY ieee;
@@ -8,7 +8,7 @@ USE ieee.std_logic_1164.ALL;
 USE ieee.std_logic_unsigned.ALL;
 USE ieee.numeric_std.ALL;
 
-ENTITY servoSweep IS
+ENTITY servoController IS
   PORT(
     clk        : IN std_logic;          -- 50 Mhz system clock
     reset_n    : IN std_logic;          -- active low system reset
@@ -20,9 +20,9 @@ ENTITY servoSweep IS
     out_wave_export  : OUT std_logic;  -- wave data visible to other components
     irq : OUT std_logic  -- signal to interrupt the processor                      
     );
-END ENTITY servoSweep;
+END ENTITY servoController;
 
-ARCHITECTURE rtl OF servoSweep IS
+ARCHITECTURE rtl OF servoController IS
 
   -- ram_type is a 2-dimensional array or inferred ram.  
   -- It stores eight 32-bit values

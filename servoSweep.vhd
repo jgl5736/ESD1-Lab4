@@ -1,5 +1,5 @@
 --  AUTHOR: Jack Lowrey
---  LAB NAME:  Servo Condroller
+--  LAB NAME:  Servo Controller
 --  FILE NAME:  servoSweep.vhd
 --
 
@@ -9,17 +9,11 @@ USE ieee.std_logic_unsigned.ALL;
 USE ieee.numeric_std.ALL;
 
 ENTITY servoSweep IS
-  PORT(
-    clk        : IN std_logic;          -- 50 Mhz system clock
-    reset_n    : IN std_logic;          -- active low system reset
-    write      : IN std_logic;          -- active high write enable
-    address    : IN std_logic;  -- address of register to be written to (from CPU)
-    writedata  : IN std_logic_vector(31 DOWNTO 0);  -- data from the CPU to be stored in the component
-    --
-    ext_addr_export  : IN  std_logic;  -- address of register to be read from (from other VHDL)
-    out_wave_export  : OUT std_logic;  -- wave data visible to other components
-    irq : OUT std_logic  -- signal to interrupt the processor                      
-    );
+  PORT(CLOCK_50  : IN    std_logic;
+       KEY       : IN    std_logic_vector(0 DOWNTO 0);
+       SW        : IN    std_logic_vector(3 DOWNTO 0);
+       LEDR      : OUT   std_logic_vector(9 DOWNTO 0)
+       );
 END ENTITY servoSweep;
 
 ARCHITECTURE rtl OF servoSweep IS
