@@ -18,19 +18,22 @@ ENTITY servoController IS
     --
     out_wave_export  : OUT std_logic;  -- wave data visible to other components
     irq : OUT std_logic  -- signal to interrupt the processor                      
-    );
+  );
 END ENTITY servoController;
 
 ARCHITECTURE rtl OF servoController IS
-
-  signal period_cntr : std_logic_vector(25 downto 0);
-  signal angle_cntr : std_logic_vector(25 downto 0);
+  signal wave : std_logic := '0';
+  signal count : integer := 0;
+  signal angle_count : integer := 0;
+  constant period_count : integer := 1000000;
   
   -- ram_type is a 2-dimensional array or inferred ram.  
   -- It stores eight 32-bit values
   TYPE ram_type IS ARRAY (1 DOWNTO 0) OF std_logic_vector (31 DOWNTO 0);
   SIGNAL Registers : ram_type;          --instance of ram_type
-
+  alias min_angle_count : std_logic_vector(31 DOWNTO 0) is Registers(0);
+  alias max_angle_count : std_logic_vector(31 DOWNTO 0) is Registers(1);
+  
   --internal signal to address ram
   SIGNAL internal_addr : std_logic;  
   
@@ -41,6 +44,8 @@ ARCHITECTURE rtl OF servoController IS
   
 BEGIN
 
+  out_wave_export <= wave;
+  
   --this process loads data from the CPU.  The CPU provides the address, 
   --the data and the write enable signal
   PROCESS(clk, reset_n)
@@ -49,13 +54,23 @@ BEGIN
       --Registers <= (OTHERS => "00000000000000000000000000000000");
     ELSIF (clk'event AND clk = '1') THEN
       IF (write = '1') THEN
-        Registers(to_integer(unsigned(address))) <= writedata;
+        Registers(to_integer(unsigned(internal_addr))) <= writedata;
+        write = '0';
         --when write enable is active, the ram location at the given address
         --is loaded with the input data
       END IF;
     END IF;
   END PROCESS;
 
+  --- PWM Counter
+  period_count : process(clk)
+  BEGIN 
+    if (count < ) then
+      count += 1;
+    else
+      count = 0;
+    end if;
+  end process;
 
 --this process updates the internal address on each clock edge.
   latch : PROCESS(clk, reset_n)
@@ -68,14 +83,14 @@ BEGIN
   END PROCESS;
 
 -- Next State Logic
-  nsl : process(clk, reset_n)
+  NSL : process(clk, reset_n, angle_count)
   BEGIN
     IF (reset_n = '0') THEN
       next_state <= SWEEP_RIGHT;
     ELSIF (clk'event AND clk = '1') THEN
       case (current_state) is
         when SWEEP_RIGHT =>
-          if (angle_count >= max_angle_count) THEN
+          if (angle_count >= to_integer(unsigned(max_angle_count))) THEN
             next_state <= INT_RIGHT;
           ELSE
             next_state <= SWEEP_RIGHT;
@@ -87,7 +102,7 @@ BEGIN
             next_state <= INT_RIGHT;
           end IF;
         when SWEEP_LEFT =>
-          if (angle_count <= min_angle_count) THEN
+          if (angle_count <= to_integer(unsigned(min_angle_count))) THEN
             next_state <= INT_LEFT;
           ELSE
             next_state <= SWEEP_LEFT;
@@ -102,15 +117,38 @@ BEGIN
     END IF;
   end PROCESS;
   
-  -- Write enable
-  fsm : process(current_state) IS
-  begin
-    
-
+  -- wave output logic
+  wave_output : process(count)
+  BEGIN
+    if (count < angle_count)
+      wave <= '1';
+    elsif (count < period_count)
+      wave <= '0';
+    end if;
+  end process;
+  
+  -- Servo Sweep logic
+  sweep : process(wave)
+  BEGIN
+    if (current_state = SWEEP_RIGHT) THEN
+      if (angle_count <= max_angle_count) THEN
+        angle_count <= angle_count + (x"00" & x"00FFFF");
+      else 
+        angle_count <= max_angle_count;
+      end if;
+    elsif (current_state = SWEEP_LEFT) THEN
+      if (angle_count >= min_angle_count) THEN
+        angle_count <= angle_count - (x"00" & x"00FFFF");
+      else 
+        angle_count <= min_angle_count;
+      end if;
+    end if;
+  end PROCESS;
+  
   --this process interrupts the processor once a sweep is complete
   interrupts : PROCESS(current_state)
   BEGIN
-    IF (current_state == INT_RIGHT || current_state == INT_LEFT) THEN
+    IF (current_state = INT_RIGHT || current_state = INT_LEFT) THEN
       irq <= '1';
     ELSE
       irq <= '0';

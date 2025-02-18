@@ -13,7 +13,7 @@ period_count : process(clk)
 wave_output : process(counter)
   if (counter < angle_count)
       wave = 1
-    else if (counter < period)
+  else if (counter < period)
       wave = 0
 
 sweep_right : process(wave)
