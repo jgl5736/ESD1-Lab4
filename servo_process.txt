@@ -1,13 +1,38 @@
-reset
+CONTROLLER
+
+reset : process
   state = sweep_right
   address = 0
   
-sweep_right
-  if new_state
-    angle_count = register(address)
+period_count : process(clk)
+  if counter < period
+    counter += 1
+  else
+    counter = 0
 
-  if counter < angle_count
-    ext_data <= 0
+wave_output : process(counter)
+  if (counter < angle_count)
+      wave = 1
+    else if (counter < period)
+      wave = 0
+
+sweep_right : process(wave)
+  if (angle_count < max_angle)
+    angle_count += 250?
+  else
+    angle_count = max_angle
+
+sweep_left : process(wave)
+  if (angle_count > min_angle)
+    angle_count -= 250?
+  else
+    angle_count = max_angle
+
+irq : process
+  if (state == int_left || state == int_right)
+    irq = 1
+  else
+    irq = 0
     
-  else if (counter < max_count)
-    ext_data <= 1
+-------------------------------------
+Sweep
