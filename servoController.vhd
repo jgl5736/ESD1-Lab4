@@ -17,7 +17,7 @@ ENTITY servoController IS
     writedata  : IN std_logic_vector(31 DOWNTO 0);  -- data from the CPU to be stored in the component
     --
     out_wave_export  : OUT std_logic;  -- wave data visible to other components
-    irq : OUT std_logic  -- signal to interrupt the processor                      
+    irq : OUT std_logic  -- signal to interrupt the processor
   );
 END ENTITY servoController;
 
@@ -35,7 +35,7 @@ ARCHITECTURE rtl OF servoController IS
   alias max_angle_count : std_logic_vector(31 DOWNTO 0) is Registers(1);
   
   --internal signal to address ram
-  SIGNAL internal_addr : std_logic;  
+  SIGNAL internal_addr : std_logic_vector(1 DOWNTO 0) := "00";  
   
   type state_type is (SWEEP_RIGHT, INT_RIGHT, SWEEP_LEFT, INT_LEFT);
   signal next_state : state_type;
@@ -62,11 +62,11 @@ BEGIN
   END PROCESS;
 
   --- PWM Counter
-  period_count : process(clk)
+  PWM_counter : process(clk)
   BEGIN 
     IF (clk'event AND clk = '1') THEN
       if (count < period_count) then
-        count += 1;
+        count <= count + 1;
       else
         count <= 0;
       end if;
@@ -77,9 +77,9 @@ BEGIN
   latch : PROCESS(clk, reset_n)
   BEGIN
     IF (reset_n = '0') THEN
-      internal_addr <= '0';
+      internal_addr(0) <= '0';
     ELSIF (clk'event AND clk = '1') THEN
-      internal_addr <= address;
+      internal_addr(0) <= address;
     END IF;
   END PROCESS;
 
@@ -129,9 +129,9 @@ BEGIN
   -- wave output logic
   wave_output : process(count)
   BEGIN
-    if (count < angle_count)
+    if (count < angle_count) then
       wave <= '1';
-    elsif (count < period_count)
+    elsif (count < period_count) then
       wave <= '0';
     end if;
   end process;
@@ -140,16 +140,16 @@ BEGIN
   sweep : process(wave)
   BEGIN
     if (current_state = SWEEP_RIGHT) THEN
-      if (angle_count <= max_angle_count) THEN
-        angle_count <= angle_count + (x"00" & x"002710");
+      if (angle_count <= to_integer(unsigned(max_angle_count))) THEN
+        angle_count <= angle_count + to_integer(x"00" & x"002710");
       else 
-        angle_count <= max_angle_count;
+        angle_count <= to_integer(unsigned(max_angle_count));
       end if;
     elsif (current_state = SWEEP_LEFT) THEN
-      if (angle_count >= min_angle_count) THEN
-        angle_count <= angle_count - (x"00" & x"002710");
+      if (angle_count >= to_integer(unsigned(min_angle_count))) THEN
+        angle_count <= angle_count - to_integer(x"00" & x"002710");
       else 
-        angle_count <= min_angle_count;
+        angle_count <= to_integer(unsigned(min_angle_count));
       end if;
     end if;
   end PROCESS;
@@ -157,7 +157,7 @@ BEGIN
   --this process interrupts the processor once a sweep is complete
   interrupts : PROCESS(current_state)
   BEGIN
-    IF (current_state = INT_RIGHT || current_state = INT_LEFT) THEN
+    IF (current_state = INT_RIGHT or current_state = INT_LEFT) THEN
       irq <= '1';
     ELSE
       irq <= '0';

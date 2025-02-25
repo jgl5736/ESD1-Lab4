@@ -1,6 +1,6 @@
 --  AUTHOR: Jack Lowrey
 --  LAB NAME:  Servo Controller
---  FILE NAME:  servoController.vhd
+--  FILE NAME:  servoController_tb.vhd
 --
 
 LIBRARY ieee;
@@ -11,7 +11,7 @@ USE ieee.numeric_std.ALL;
 ENTITY servoController_tb IS
 END ENTITY servoController_tb;
 
-ARCHITECTURE rtl OF servoController IS
+ARCHITECTURE rtl OF servoController_tb IS
 
   component servoController IS
     PORT(
@@ -27,34 +27,17 @@ ARCHITECTURE rtl OF servoController IS
   END component;
 
   constant period       : time := 20ns;
-  constant min_angle    : unsigned := 50000;
-  constant max_angle    : unsigned := 100000;
+  constant min_angle    : integer := 50000;
+  constant max_angle    : integer := 100000;
   
   signal clk        : std_logic := '0';          -- 50 Mhz system clock
   signal reset_n    : std_logic := '0';          -- active low system reset
-  signal write      : std_logic;          -- active high write enable
-  signal address    : std_logic;          -- address of register to be written to (from CPU)
-  signal writedata  : std_logic_vector(31 DOWNTO 0);  -- data from the CPU to be stored in the component
+  signal write      : std_logic := '0';          -- active high write enable
+  signal address    : std_logic := '0';          -- address of register to be written to (from CPU)
+  signal writedata  : std_logic_vector(31 DOWNTO 0) := (others => '0');  -- data from the CPU to be stored in the component
   signal out_wave_export  : std_logic;  -- wave data visible to other components
-  signal irq : std_logic  -- signal to interrupt the processor
+  signal irq : std_logic;  -- signal to interrupt the processor
     
-  signal cntr : std_logic_vector(25 downto 0);
-  signal period_cntr : std_logic_vector(25 downto 0);
-  signal angle_cntr : std_logic_vector(25 downto 0);
-  
-  -- ram_type is a 2-dimensional array or inferred ram.  
-  -- It stores eight 32-bit values
-  TYPE ram_type IS ARRAY (1 DOWNTO 0) OF std_logic_vector (31 DOWNTO 0);
-  SIGNAL Registers : ram_type;          --instance of ram_type
-
-  --internal signal to address ram
-  SIGNAL internal_addr : std_logic;  
-  
-  type state_type is (SWEEP_RIGHT, INT_RIGHT, SWEEP_LEFT, INT_LEFT);
-  signal next_state : state_type;
-  signal current_state : state_type;
-  signal is_new_state : std_logic;
-  
 BEGIN
 
   -- clock process
@@ -81,7 +64,19 @@ BEGIN
     write <= '0';
   end process;
 
-  
+  main : process
+  BEGIN
+    wait for 4*period;
+    address <= '0';
+    write <= '1';
+    writedata <= std_logic_vector(to_unsigned(min_angle));
+    wait for 2*period;
+    address <= '1';
+    writedata <= std_logic_vector(to_unsigned(max_angle));
+    wait for 2*period;
+    write <= '0';
+    wait;
+    
 
   uut : servoController
   port map(
