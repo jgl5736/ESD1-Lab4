@@ -55,7 +55,6 @@ BEGIN
     ELSIF (clk'event AND clk = '1') THEN
       IF (write = '1') THEN
         Registers(to_integer(unsigned(internal_addr))) <= writedata;
-        write = '0';
         --when write enable is active, the ram location at the given address
         --is loaded with the input data
       END IF;
@@ -65,14 +64,16 @@ BEGIN
   --- PWM Counter
   period_count : process(clk)
   BEGIN 
-    if (count < ) then
-      count += 1;
-    else
-      count = 0;
+    IF (clk'event AND clk = '1') THEN
+      if (count < period_count) then
+        count += 1;
+      else
+        count <= 0;
+      end if;
     end if;
   end process;
 
---this process updates the internal address on each clock edge.
+  --this process updates the internal address on each clock edge.
   latch : PROCESS(clk, reset_n)
   BEGIN
     IF (reset_n = '0') THEN
@@ -82,39 +83,47 @@ BEGIN
     END IF;
   END PROCESS;
 
--- Next State Logic
-  NSL : process(clk, reset_n, angle_count)
+  --Update current_state
+  state : PROCESS(clk, reset_n)
   BEGIN
     IF (reset_n = '0') THEN
-      next_state <= SWEEP_RIGHT;
+      current_state <= SWEEP_RIGHT;
     ELSIF (clk'event AND clk = '1') THEN
-      case (current_state) is
-        when SWEEP_RIGHT =>
-          if (angle_count >= to_integer(unsigned(max_angle_count))) THEN
-            next_state <= INT_RIGHT;
-          ELSE
-            next_state <= SWEEP_RIGHT;
-          end if;
-        when INT_RIGHT =>
-          if (write ='1') THEN
-            next_state <= SWEEP_LEFT;
-          else 
-            next_state <= INT_RIGHT;
-          end IF;
-        when SWEEP_LEFT =>
-          if (angle_count <= to_integer(unsigned(min_angle_count))) THEN
-            next_state <= INT_LEFT;
-          ELSE
-            next_state <= SWEEP_LEFT;
-          end if;
-        when INT_LEFT=>
-          if (write ='1') THEN
-            next_state <= SWEEP_RIGHT;
-          else 
-            next_state <= INT_LEFT;
-          end IF;
-      end case;
+      current_state <= next_state;
     END IF;
+  END PROCESS;
+
+  -- Next State Logic
+  NSL : process(current_state, angle_count,write)
+  BEGIN
+    case (current_state) is
+      when SWEEP_RIGHT =>
+        if (angle_count >= to_integer(unsigned(max_angle_count))) THEN
+          next_state <= INT_RIGHT;
+        ELSE
+          next_state <= SWEEP_RIGHT;
+        end if;
+      when INT_RIGHT =>
+        if (write ='1') THEN
+          next_state <= SWEEP_LEFT;
+        else 
+          next_state <= INT_RIGHT;
+        end IF;
+      when SWEEP_LEFT =>
+        if (angle_count <= to_integer(unsigned(min_angle_count))) THEN
+          next_state <= INT_LEFT;
+        ELSE
+          next_state <= SWEEP_LEFT;
+        end if;
+      when INT_LEFT=>
+        if (write ='1') THEN
+          next_state <= SWEEP_RIGHT;
+        else 
+          next_state <= INT_LEFT;
+        end IF;
+      when others =>
+        next_state <= SWEEP_RIGHT;
+    end case;
   end PROCESS;
   
   -- wave output logic
@@ -132,13 +141,13 @@ BEGIN
   BEGIN
     if (current_state = SWEEP_RIGHT) THEN
       if (angle_count <= max_angle_count) THEN
-        angle_count <= angle_count + (x"00" & x"00FFFF");
+        angle_count <= angle_count + (x"00" & x"002710");
       else 
         angle_count <= max_angle_count;
       end if;
     elsif (current_state = SWEEP_LEFT) THEN
       if (angle_count >= min_angle_count) THEN
-        angle_count <= angle_count - (x"00" & x"00FFFF");
+        angle_count <= angle_count - (x"00" & x"002710");
       else 
         angle_count <= min_angle_count;
       end if;
@@ -155,4 +164,4 @@ BEGIN
     END IF;
   END PROCESS;
 
-END ARCHITECTURE rtl;         
+END ARCHITECTURE rtl;
