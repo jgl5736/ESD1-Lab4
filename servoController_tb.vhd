@@ -26,8 +26,12 @@ ARCHITECTURE rtl OF servoController IS
       );
   END component;
 
-  signal clk        : std_logic;          -- 50 Mhz system clock
-  signal reset_n    : std_logic;          -- active low system reset
+  constant period       : time := 20ns;
+  constant min_angle    : unsigned := 50000;
+  constant max_angle    : unsigned := 100000;
+  
+  signal clk        : std_logic := '0';          -- 50 Mhz system clock
+  signal reset_n    : std_logic := '0';          -- active low system reset
   signal write      : std_logic;          -- active high write enable
   signal address    : std_logic;          -- address of register to be written to (from CPU)
   signal writedata  : std_logic_vector(31 DOWNTO 0);  -- data from the CPU to be stored in the component
@@ -53,11 +57,36 @@ ARCHITECTURE rtl OF servoController IS
   
 BEGIN
 
+  -- clock process
+  clock: process
+  begin
+    clk <= not clk;
+    wait for period/2;
+  end process; 
+   
+  -- reset process
+  async_reset: process
+  begin
+    wait for 2 * period;
+    reset_n <= '1';
+    wait;
+  end process; 
 
-uut : servoController
+  -- ISR sets write high for one clock
+  ISR : process(irq)
+  BEGIN
+    write <= '1';
+    wait until rising_edge(clk);
+    wait until falling_edge(clk);
+    write <= '0';
+  end process;
+
+  
+
+  uut : servoController
   port map(
     clk      => clk,
-    reset_n  => reset,
+    reset_n  => reset_n,
     write    => write,
     address  => address,
     writedata => writedata,
@@ -65,15 +94,4 @@ uut : servoController
     irq => irq
   );
 
---- heartbeat counter --------
-  counter_proc : process (CLOCK_50) begin
-    if (rising_edge(CLOCK_50)) then
-      if (reset_n = '0') then
-        cntr <= "00" & x"000000";
-      else
-        cntr <= cntr + ("00" & x"000001");
-      end if;
-    end if;
-  end process counter_proc;
-
-END ARCHITECTURE rtl;         
+END ARCHITECTURE rtl;
