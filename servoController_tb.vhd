@@ -26,7 +26,7 @@ ARCHITECTURE rtl OF servoController_tb IS
       );
   END component;
 
-  constant period       : time := 20ns;
+  constant period       : time := 20 ns;
   constant min_angle    : integer := 50000;
   constant max_angle    : integer := 100000;
   
@@ -50,33 +50,38 @@ BEGIN
   -- reset process
   async_reset: process
   begin
-    wait for 2 * period;
+    wait for period;
     reset_n <= '1';
     wait;
   end process; 
 
   -- ISR sets write high for one clock
-  ISR : process(irq)
-  BEGIN
-    write <= '1';
-    wait until rising_edge(clk);
-    wait until falling_edge(clk);
-    write <= '0';
-  end process;
+  -- ISR : process
+  -- BEGIN
+    -- wait until rising_edge(irq);
+    -- write <= '1';
+    -- wait until rising_edge(clk);
+    -- wait until falling_edge(clk);
+    -- write <= '0';
+  -- end process;
 
   main : process
   BEGIN
-    wait for 4*period;
+    wait until rising_edge(irq);
     address <= '0';
     write <= '1';
-    writedata <= std_logic_vector(to_unsigned(min_angle));
-    wait for 2*period;
+    writedata <= std_logic_vector(to_unsigned(min_angle,32));
+    wait for period;
+    write <= '0';
+    wait for period;
     address <= '1';
-    writedata <= std_logic_vector(to_unsigned(max_angle));
-    wait for 2*period;
+    wait for period;
+    write <= '1';
+    writedata <= std_logic_vector(to_unsigned(max_angle,32));
+    wait for period;
     write <= '0';
     wait;
-    
+  end process;
 
   uut : servoController
   port map(

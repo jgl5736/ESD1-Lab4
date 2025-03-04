@@ -40,18 +40,20 @@ ARCHITECTURE rtl OF servoController IS
   type state_type is (SWEEP_RIGHT, INT_RIGHT, SWEEP_LEFT, INT_LEFT);
   signal next_state : state_type;
   signal current_state : state_type;
-  signal is_new_state : std_logic;
+  signal is_new_state : boolean := false;
   
 BEGIN
 
   out_wave_export <= wave;
+  is_new_state <= (current_state /= next_state);
   
   --this process loads data from the CPU.  The CPU provides the address, 
   --the data and the write enable signal
   PROCESS(clk, reset_n)
   BEGIN
     IF (reset_n = '0') THEN
-      --Registers <= (OTHERS => "00000000000000000000000000000000");
+      Registers(0) <= x"C350";
+      Registers(1) <= x"186A0";
     ELSIF (clk'event AND clk = '1') THEN
       IF (write = '1') THEN
         Registers(to_integer(unsigned(internal_addr))) <= writedata;
@@ -66,7 +68,7 @@ BEGIN
   BEGIN 
     IF (clk'event AND clk = '1') THEN
       if (count < period_count) then
-        count <= count + 1;
+        count <= count + 10000;
       else
         count <= 0;
       end if;
@@ -137,19 +139,29 @@ BEGIN
   end process;
   
   -- Servo Sweep logic
-  sweep : process(wave)
+  sweep : process(count)
   BEGIN
     if (current_state = SWEEP_RIGHT) THEN
-      if (angle_count <= to_integer(unsigned(max_angle_count))) THEN
-        angle_count <= angle_count + to_integer(x"00" & x"002710");
-      else 
-        angle_count <= to_integer(unsigned(max_angle_count));
+      if (is_new_state) THEN
+        angle_count <= to_integer(unsigned(min_angle_count));
+      end if;
+      if (count = 0) THEN
+        if (angle_count <= to_integer(unsigned(max_angle_count))) THEN
+          angle_count <= angle_count + to_integer(unsigned'(x"002710"));
+        else 
+          angle_count <= to_integer(unsigned(max_angle_count));
+        end if;
       end if;
     elsif (current_state = SWEEP_LEFT) THEN
-      if (angle_count >= to_integer(unsigned(min_angle_count))) THEN
-        angle_count <= angle_count - to_integer(x"00" & x"002710");
-      else 
-        angle_count <= to_integer(unsigned(min_angle_count));
+      if (is_new_state) THEN
+        angle_count <= to_integer(unsigned(max_angle_count));
+      end if;
+      if (count = 0) THEN
+        if (angle_count >= to_integer(unsigned(min_angle_count))) THEN
+          angle_count <= angle_count - to_integer(unsigned'(x"002710"));
+        else 
+          angle_count <= to_integer(unsigned(min_angle_count));
+        end if;
       end if;
     end if;
   end PROCESS;
